@@ -20,15 +20,81 @@ def generate_pricemaster_price():
     return price
 
 def print_slowly(text):
-    """Prints the text one word at a time with a delay, making the last two words extra slow."""
+    """Prints the text with a varying delay, increasing for the last two words."""
     words = text.split()
     for i, word in enumerate(words):
         print(word, end=' ', flush=True)
-        if i >= len(words) - 3:  # Extra slow for the last two words
-            time.sleep(1)  # Increase the delay for the last two words
-        else:
-            time.sleep(0.5)  # Regular delay for the other words
+        time.sleep(1 if i >= len(words) - 3 else 0.5)
     print()  # New line after the sentence
+
+def say_price(price):
+    price_in_words = p.number_to_words(price).upper() + " DOLLARS"
+    print("The PriceMaster demands:", end=' ')
+    print_slowly(f"\"{price_in_words}\"")
+
+def handle_ask(item, previous_price):
+    if previous_price:
+        # An offer was already made.
+        if random.choice([True, False]) and new_price <= 10**11:
+            # 50% chance to raise the price by an order of magnitude.
+            new_price = 10**3 * previous_price
+            say_price(new_price)
+            return new_price
+        else:
+            if random.choice([True, False]):
+                # 25% chance to refuse
+                print("The PriceMaster announces:", end=' ')
+                print_slowly("\"THE PRICEMASTER HAS SPOKEN\"")
+                return previous_price
+            else:
+                # 25% chance to provide a new price
+                new_price = generate_pricemaster_price()
+                say_price(new_price)
+                return new_price
+    else:
+        # No offers for this item yet.
+        new_price = generate_pricemaster_price()
+        say_price(new_price)
+        return new_price
+
+def handle_offer(item, previous_price):
+    random_offers = sorted(random.sample(range(1, 40), 5))
+    offer_speech = [f"${x}" for x in random_offers]
+    offered_price = int(inquirer.prompt([
+        inquirer.List('offer', message="The PriceMaster demands: \"MAKE ME AN OFFER\"", choices=offer_speech)
+    ])['offer'].lstrip('$'))
+
+    if previous_price:
+        # An offer was already made.
+        if random.choice([True, False]):
+            # 50% chance to refuse
+            print("The PriceMaster announces:", end=' ')
+            print_slowly("\"THE PRICEMASTER HAS SPOKEN\"")
+            return previous_price
+        else:
+            if random.choice([True, False]):
+                # 25% chance to raise the provided price by an order of magnitude.
+                magnitude = random.choice([3, 6, 9])
+                new_price = offered_price * (10 ** magnitude)
+                say_price(new_price)
+                return new_price
+            else:
+                # 25% chance to provide a new price
+                new_price = generate_pricemaster_price()
+                say_price(new_price)
+                return new_price
+    else:
+        if random.choice([True, False]):
+            # 50% chance to raise the provided price by an order of magnitude.
+            magnitude = random.choice([3, 6, 9])
+            new_price = offered_price * (10 ** magnitude)
+            say_price(new_price)
+            return new_price
+        else:
+            # 50% chance to provide a random price
+            new_price = generate_pricemaster_price()
+            say_price(new_price)
+            return new_price
 
 def play_round(offer_made):
     item = inquirer.prompt([
@@ -41,76 +107,11 @@ def play_round(offer_made):
     ])['action']
 
     if action.startswith("Ask"):
-        if offer_made.get(item, None):
-            # An offer was already made.
-            if random.choice([True, False]) and offer_made.get(item, None) <= 10**11:
-                # 50% chance to raise the price by 10x.
-                offer_made[item] = 10 * offer_made.get(item, None)
-                price_in_words = p.number_to_words(offer_made.get(item, None)).upper() + " DOLLARS"
-                print("The PriceMaster demands:", end=' ')
-                print_slowly(f"\"{price_in_words}\"")
-            else:
-                if random.choice([True, False]):
-                    # 25% chance to refuse
-                    print("The PriceMaster announces:", end=' ')
-                    print_slowly("\"THE PRICEMASTER HAS SPOKEN\"")
-                else:
-                    # 25% chance to provide a new price
-                    pricemaster_price = generate_pricemaster_price()
-                    offer_made[item] = pricemaster_price
-                    price_in_words = p.number_to_words(pricemaster_price).upper() + " DOLLARS"
-                    print("The PriceMaster demands:", end=' ')
-                    print_slowly(f"\"{price_in_words}\"")
-        else:
-            # No offers for this item yet.
-            pricemaster_price = generate_pricemaster_price()
-            offer_made[item] = pricemaster_price
-            price_in_words = p.number_to_words(offer_made.get(item, None)).upper() + " DOLLARS"
-            print("The PriceMaster demands:", end=' ')
-            print_slowly(f"\"{price_in_words}\"")
+        price = handle_ask(item, offer_made.get(item, None))
+        offer_made[item] = price
     else:
-        random_offers = sorted(random.sample(range(1, 40), 5))
-        offer_speech = [f"${x}" for x in random_offers]
-        offered_price = int(inquirer.prompt([
-            inquirer.List('offer', message="The PriceMaster demands: \"MAKE ME AN OFFER\"", choices=offer_speech)
-        ])['offer'].lstrip('$'))
-
-        if offer_made.get(item, None):
-            # An offer was already made.
-            if random.choice([True, False]):
-                # 50% chance to refuse
-                print("The PriceMaster announces:", end=' ')
-                print_slowly("\"THE PRICEMASTER HAS SPOKEN\"")
-            else:
-                if random.choice([True, False]):
-                    # 25% chance to raise the provided price by an order of magnitude.
-                    magnitude = random.choice([3, 6, 9])
-                    offer_made[item] = offered_price * (10 ** magnitude)
-                    price_in_words = p.number_to_words(offer_made.get(item, None)).upper() + " DOLLARS"
-                    print("The PriceMaster demands:", end=' ')
-                    print_slowly(f"\"{price_in_words}\"")
-                else:
-                    # 25% chance to provide a new price
-                    pricemaster_price = generate_pricemaster_price()
-                    offer_made[item] = pricemaster_price
-                    price_in_words = p.number_to_words(pricemaster_price).upper() + " DOLLARS"
-                    print("The PriceMaster demands:", end=' ')
-                    print_slowly(f"\"{price_in_words}\"")
-        else:
-            if random.choice([True, False]):
-                # 50% chance to raise the provided price by an order of magnitude.
-                magnitude = random.choice([3, 6, 9])
-                offer_made[item] = offered_price * (10 ** magnitude)
-                price_in_words = p.number_to_words(offer_made.get(item, None)).upper() + " DOLLARS"
-                print("The PriceMaster demands:", end=' ')
-                print_slowly(f"\"{price_in_words}\"")
-            else:
-                # 50% chance to provide a random price
-                pricemaster_price = generate_pricemaster_price()
-                offer_made[item] = pricemaster_price
-                price_in_words = p.number_to_words(pricemaster_price).upper() + " DOLLARS"
-                print("The PriceMaster demands:", end=' ')
-                print_slowly(f"\"{price_in_words}\"")
+        price = handle_offer(item, offer_made.get(item, None))
+        offer_made[item] = price
 
 def game_loop():
     offer_made = {}  # Initialize a dictionary to track offers
